@@ -86,6 +86,9 @@ type Helper struct {
 
 	// OnPodDeletedOrEvicted is called when a pod is evicted/deleted; for printing progress output
 	OnPodDeletedOrEvicted func(pod *corev1.Pod, usingEviction bool)
+
+	// OnPodDeletionOrEvictionFailed is called when a pod is eviction/deletetion is failed; for printing progress output
+	OnPodDeletionOrEvictionFailed func(pod *corev1.Pod, usingEviction bool)
 }
 
 type waitForDeleteParams struct {
@@ -96,6 +99,7 @@ type waitForDeleteParams struct {
 	usingEviction                   bool
 	getPodFn                        func(string, string) (*corev1.Pod, error)
 	onDoneFn                        func(pod *corev1.Pod, usingEviction bool)
+	onFailedFn                      func(pod *corev1.Pod, usingEviction bool)
 	globalTimeout                   time.Duration
 	skipWaitForDeleteTimeoutSeconds int
 	out                             io.Writer
@@ -334,6 +338,7 @@ func (d *Helper) evictPods(pods []corev1.Pod, evictionGroupVersion schema.GroupV
 				usingEviction:                   true,
 				getPodFn:                        getPodFn,
 				onDoneFn:                        d.OnPodDeletedOrEvicted,
+				onFailedFn:                      d.OnPodDeletionOrEvictionFailed,
 				globalTimeout:                   globalTimeout,
 				skipWaitForDeleteTimeoutSeconds: d.SkipWaitForDeleteTimeoutSeconds,
 				out:                             d.Out,
@@ -387,6 +392,7 @@ func (d *Helper) deletePods(pods []corev1.Pod, getPodFn func(namespace, name str
 		usingEviction:                   false,
 		getPodFn:                        getPodFn,
 		onDoneFn:                        d.OnPodDeletedOrEvicted,
+		onFailedFn:                      d.OnPodDeletionOrEvictionFailed,
 		globalTimeout:                   globalTimeout,
 		skipWaitForDeleteTimeoutSeconds: d.SkipWaitForDeleteTimeoutSeconds,
 		out:                             d.Out,
@@ -407,6 +413,9 @@ func waitForDelete(params waitForDeleteParams) ([]corev1.Pod, error) {
 				}
 				continue
 			} else if err != nil {
+				if params.onFailedFn != nil {
+					params.onFailedFn(&pod, params.usingEviction)
+				}
 				return false, err
 			} else {
 				if shouldSkipPod(*p, params.skipWaitForDeleteTimeoutSeconds) {

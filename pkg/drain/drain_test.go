@@ -157,6 +157,7 @@ func TestDeletePods(t *testing.T) {
 				usingEviction:                   false,
 				getPodFn:                        test.getPodFn,
 				onDoneFn:                        nil,
+				onFailedFn:                      nil,
 				globalTimeout:                   time.Duration(math.MaxInt64),
 				out:                             os.Stdout,
 				skipWaitForDeleteTimeoutSeconds: 10,

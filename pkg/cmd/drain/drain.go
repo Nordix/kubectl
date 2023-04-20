@@ -157,6 +157,7 @@ func NewDrainCmdOptions(f cmdutil.Factory, ioStreams genericiooptions.IOStreams)
 		},
 	}
 	o.drainer.OnPodDeletedOrEvicted = o.onPodDeletedOrEvicted
+	o.drainer.OnPodDeletionOrEvictionFailed = o.onPodDeletionOrEvictionFailed
 	return o
 }
 
@@ -167,6 +168,23 @@ func (o *DrainCmdOptions) onPodDeletedOrEvicted(pod *corev1.Pod, usingEviction b
 		verbStr = "evicted"
 	} else {
 		verbStr = "deleted"
+	}
+	printObj, err := o.ToPrinter(verbStr)
+	if err != nil {
+		fmt.Fprintf(o.ErrOut, "error building printer: %v\n", err)
+		fmt.Fprintf(o.Out, "pod %s/%s %s\n", pod.Namespace, pod.Name, verbStr)
+	} else {
+		printObj(pod, o.Out)
+	}
+}
+
+// onPodDeletionOrEvictionFailed is called by drain.Helper, when the pod has been deleted or evicted
+func (o *DrainCmdOptions) onPodDeletionOrEvictionFailed(pod *corev1.Pod, usingEviction bool) {
+	var verbStr string
+	if usingEviction {
+		verbStr = "eviction failed"
+	} else {
+		verbStr = "deletion failed"
 	}
 	printObj, err := o.ToPrinter(verbStr)
 	if err != nil {
